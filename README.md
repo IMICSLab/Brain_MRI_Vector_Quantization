@@ -19,5 +19,6 @@ To train the transformer model locally, run:
 python3 ./train_transformer.py
 ```
 You can also run this in the server, simply change the python file name in train_vae.sh accordingly.
+You can change the hyperparameters of the transformer in the model_transformer_config file in the configs folder, and also in the vqgan_transformer.py file in the model folder, for some parameters with default values
 
 Will update the script for sampling images from the transformer model in the future.
