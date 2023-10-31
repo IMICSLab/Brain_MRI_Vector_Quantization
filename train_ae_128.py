@@ -16,7 +16,8 @@ import torch.backends.cudnn as cudnn
 import sys
 sys.path.append("../")
 
-import meta_config as c
+#import meta_config as c
+import model_config as mc
 #from dcgan.model_v2 import Generator3D, Discriminator3D, weight_init
 #from dcgan.model_v6 import Generator3D, Discriminator3D, weight_init
 from dcgan.autoencoder_128_v2 import Encoder, Decoder, Codebook, Discriminator3D, weight_init, VAE, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
@@ -63,9 +64,9 @@ def calculate_adaptive_weight(nll_loss, g_loss, last_layer=None):
 # to ensure it doesn't run partly on another gpu
 #torch.cuda.set_device(c.cuda_n[0])
 
-data_dir = c.data_dir_plgg
+data_dir = mc.data_dir
 
-res_dir = c.res_dir_imgOnly_paper
+res_dir = c.save_dir
 
 #data_dir = "Z:/Datasets/MedicalImages/BrainData/SickKids/LGG/AI_ready"
 print("loading data: ")
@@ -78,13 +79,13 @@ Rois = torch.load(os.path.join(data_dir, "mutation_ROIs_128_train.pt"))
 print("finish loading.")
 print(Rois.shape)
 
-BATCH_SIZE = 3
-z_dim = (8,8,8) # last conv dim, bottleneck dim
-EPOCH = 5000
-TRAIL = "1_rerunV2"#3
-LATENT_DIM = 1000 # Linear latent dim
-
-lr_decay = True
+BATCH_SIZE = mc.bs
+z_dim = mc.z_dim #(8,8,8) # last conv dim, bottleneck dim
+EPOCH = mc.epoch
+codebook_dim = mc.latent_channels
+TRAIL = mc.trail #"1_rerunV2"#3
+#LATENT_DIM = 1000 # Linear latent dim
+lr_decay = mc.lr_decay
 
 if not os.path.exists(res_dir + "/trail{}".format(TRAIL)):
     os.makedirs(res_dir + "/trail{}".format(TRAIL))
@@ -140,15 +141,15 @@ def hinge_d_loss(logits_real, logits_fake):
 l1_loss = L1Loss()
 #kl_loss = KLDivergence()
 lpips_loss = LPIPS().to(device).eval()
-preV_conv = pre_vq_conv(512, 512, 1).to(device)
-postV_conv = post_vq_conv(512, 512, 1).to(device)
+preV_conv = pre_vq_conv(codebook_dim, codebook_dim, 1).to(device)
+postV_conv = post_vq_conv(codebook_dim, codebook_dim, 1).to(device)
 
 
 # ####Create VAE object##### #
 netE = Encoder().to(device) # encoder
 
 netD = Decoder(z_dim).to(device)
-codebook = Codebook(512, 512).to(device)
+codebook = Codebook(mc.n_codes, codebook_dim).to(device)
 
 # netVAE = VAE(device, z_dim).to(device)
 #netDis = Discriminator3D().to(device)
@@ -164,8 +165,8 @@ netNL_Dis.apply(weight_init)
 
 #enc_lr = 0.0001
 #dec_lr = 0.0001
-vae_lr = 0.0001 # start lr, old 0.00005
-dis_lr = 0.0001
+vae_lr = mc.var_lr #0.0001 # start lr, old 0.00005
+dis_lr = mc.dis_lr #0.0001
 # optimizerD = optim.Adam(netD.parameters(), lr = dec_lr,
 #                         betas=(0, 0.9))
 # optimizerE = optim.Adam(netE.parameters(), lr = enc_lr,
@@ -228,7 +229,7 @@ whole_process_start = time.time()
 # For each epoch
 for epoch in range(EPOCH):
     
-    adv_d_weights = 1. if epoch >= 2500 else 0 #max((EPOCH-epoch)/EPOCH, 0.5)
+    adv_d_weights = 1. if epoch >= mc.dis_start else 0 #max((EPOCH-epoch)/EPOCH, 0.5)
     
     print("new epoch starts")
     epoch_start_time = time.time()
@@ -287,7 +288,7 @@ for epoch in range(EPOCH):
             
             B,C,T,H,W = im_out.shape
 
-            for k in range(3): # 5, +20, -20
+            for k in range(mc.perp_num): # 5, +20, -20
                 frame_idx = torch.randint(0+30, T-30, [B]).to(device)
                 frame_idx_selected = frame_idx.reshape(-1,
                                                     1, 1, 1, 1).repeat(1, C, 1, H, W)
