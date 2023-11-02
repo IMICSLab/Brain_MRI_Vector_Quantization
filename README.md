@@ -1,5 +1,7 @@
 # Code for the paper - Generating 3D Brain Tumor Regions in MRI using Vector-Quantization Generative Adversarial Networks
 
+[Paper](https://arxiv.org/abs/2310.01251)
+
 ### Usage
 
 To train the 3D-VQGAN model locally, run:
