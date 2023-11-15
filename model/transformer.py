@@ -221,7 +221,7 @@ class GPT(nn.Module):
         x = self.drop(token_embeddings + position_embeddings)
         presents = []  # accumulate over layers
         for i, block in enumerate(self.blocks):
-            x, present = block(x, layer_past=None, return_present=True)
+            x, present = block(x, layer_past=past[i, ...] if past is not None else None, return_present=True)
             presents.append(present)
 
         x = self.ln_f(x)
