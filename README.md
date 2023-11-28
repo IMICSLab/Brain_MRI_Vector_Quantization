@@ -29,6 +29,6 @@ python3 ./sample_transformer.py
 ```
 You can change the *temperature* parameter in the sampling method, which controls the diversity.
 
-For MS-SSIM and MMD calculation, please refer to [this repo](https://github.com/cyclomon/3dbraingen)  
+For MS-SSIM and MMD calculation, please refer to [this repo](https://github.com/cyclomon/3dbraingen), and for the FID score, the implementation is available at [here](https://github.com/mseitzer/pytorch-fid)
 
 This is just a simple guide to train our model. We will provide a more detailed model usage, and other useful functions in the future.
