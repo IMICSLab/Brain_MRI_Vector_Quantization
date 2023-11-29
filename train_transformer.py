@@ -149,7 +149,7 @@ for epoch in range(EPOCH):
         
         with torch.cuda.amp.autocast(enabled=use_mixed_precision):
             _,logits, targets = transformer_model(data)
-            loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), targets.contiguous().view(-1)) # change to only compute the loss on masked?
+            loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), targets.contiguous().view(-1)) # or compute the loss on masked
         
         scaler.scale(loss).backward(retain_graph=True)
         scaler.step(optim_transformer)
