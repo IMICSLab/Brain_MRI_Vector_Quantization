@@ -145,7 +145,9 @@ class socre_net(nn.Module):
                 return loss, class_prob, pred_score, pred_vis, img_feat_weighted
             
         elif self.score_pred_net_mode == "2layer_att":
-            print("================CAUTION!!!! THIS MODULE:{} HAS NOT BEEN TESTED YET!!!==============================".format(self.score_pred_net_mode))
+            print("============================================")
+            print("=====THIS MODULE: {} IS NOT USED AND HAS NOT BEEN TESTED YET=====".format(self.score_pred_net_mode))
+            print("============================================")
             img_feat_att, att = self.att(img_feat_norm)
             img_feat_att = self.score_pred_net(img_feat_att)
             img_feat_att = img_feat_att.view(batch_size, -1)
@@ -153,7 +155,7 @@ class socre_net(nn.Module):
             class_prob = F.softmax(class_out, dim=1)
             if label is not None:
                 loss = F.cross_entropy(class_prob, label)
-                return loss, class_out, att
+                return loss, class_prob, att, None, None
         
         return pred_score, pred_vis, img_feat_weighted
         
