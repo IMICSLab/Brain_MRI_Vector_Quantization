@@ -19,9 +19,9 @@ import sys
 sys.path.append("../")
 
 import meta_config as c
-from dcgan.autoencoder_128_cond_v2 import Encoder, Decoder, weight_init, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
-from dcgan.norm_ema_codebook import NormEMAVectorQuantizer
-from dcgan.lightweight_classfier import *
+from model.autoencoder_128_cond_v2 import Encoder, Decoder, weight_init, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
+from model.norm_ema_codebook import NormEMAVectorQuantizer
+from model.lightweight_classfier import *
 
 from utils import set_seed
 from utils.get_data import *
