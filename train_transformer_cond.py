@@ -8,12 +8,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import utils as vutils
 import sys
-sys.path.append("/home/szhou/pLGG")
+sys.path.append("../")
 
 import meta_config as c
 from utils import set_seed
 from utils.get_data import *
-from dcgan.vqgan_transformer_cond import VQGANTransformer
+from model.vqgan_transformer_cond import VQGANTransformer
 from utils.plot_loss import plot_loss
 from utils.save_gen_img import show
 from configs.vqgan_cond_configs import models_config
