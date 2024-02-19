@@ -1,6 +1,6 @@
 # Code for the paper - (Unconditional/Class-conditioned) generation of 3D Brain Tumor Regions in MRI using VQGAN and Transformer
 
-[Paper for Unconditional generation](https://arxiv.org/abs/2310.01251), under review at Computers in Biology and Medicine
+[Paper for unconditional generation](https://arxiv.org/abs/2310.01251), under review at Computers in Biology and Medicine
 
 [Paper for conditional generation](https://openreview.net/pdf?id=LLoSHPorlM), under review at MIDL 2024
 
