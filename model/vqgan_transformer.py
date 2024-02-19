@@ -5,9 +5,8 @@ import sys
 sys.path.append("/home/szhou/pLGG")
 import os
 
-from dcgan.transformer import GPT
-#from vqgan import VQGAN
-from dcgan.autoencoder_128 import *
+from model.transformer import GPT
+from model.autoencoder_128 import *
 
 
 def top_k_top_p_filtering(logits, top_k, top_p, filter_value=-float("Inf"), min_tokens_to_keep=1):
