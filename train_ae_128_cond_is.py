@@ -29,7 +29,7 @@ from utils.plot_loss import plot_loss
 from utils.save_gen_img import show, show_importance_overlay
 from utils.lpips import *
 from utils.img_grad_loss import *
-from cond_model_configs import model_configs
+from configs.cond_model_configs import model_configs
 
 # Set random seed for reproducibility
 set_seed.random_seed(0, True)
