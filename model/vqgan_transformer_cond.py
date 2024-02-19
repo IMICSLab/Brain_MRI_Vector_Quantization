@@ -8,10 +8,10 @@ import sys
 sys.path.append("../")
 import os
 
-from dcgan.transformer import GPT, sample_with_past
-from dcgan.autoencoder_128_cond_model import Encoder, Decoder, pre_vq_conv, post_vq_conv
-from dcgan.norm_ema_codebook import NormEMAVectorQuantizer
-from dcgan.lightweight_classfier import *
+from model.transformer import GPT, sample_with_past
+from model.autoencoder_128_cond_model import Encoder, Decoder, pre_vq_conv, post_vq_conv
+from model.norm_ema_codebook import NormEMAVectorQuantizer
+from model.lightweight_classfier import *
 
 
 class LabelEnc(nn.Module):
