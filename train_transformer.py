@@ -9,7 +9,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import utils as vutils
 import sys
-sys.path.append("/home/szhou/pLGG")
+sys.path.append("../")
 
 import meta_config as c
 from utils import set_seed
