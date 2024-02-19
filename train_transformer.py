@@ -14,7 +14,7 @@ sys.path.append("/home/szhou/pLGG")
 import meta_config as c
 from utils import set_seed
 from utils.get_data import *
-from dcgan.vqgan_transformer_lat8 import VQGANTransformer
+from model.vqgan_transformer_lat8 import VQGANTransformer
 from utils.plot_loss import plot_loss
 from utils.save_gen_img import show
 
@@ -24,13 +24,7 @@ data_dir = c.data_dir
 
 res_dir = c.res_dir_imgOnly
 
-#data_dir = "Z:/Datasets/MedicalImages/BrainData/SickKids/LGG/AI_ready"
 print("loading data: ")
-# Msks = load_object(os.path.join(data_dir, "Masks.p").replace("\\", "/"))
-# Imgs = load_object(os.path.join(data_dir, "imgs.p").replace("\\", "/"))
-# # labels = load_object("../data/labels.p")
-# pIDs = load_object(os.path.join(data_dir, "pIDs.p").replace("\\", "/"))LGG_ROI_128_train
-#Rois = torch.load(os.path.join(data_dir, "other_types_ROIs_128_train.pt"))
 Rois = torch.load(os.path.join(data_dir, "LGG_ROI_128_train.pt"))
 print("finish loading.")
 
