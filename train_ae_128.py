@@ -16,12 +16,8 @@ import torch.backends.cudnn as cudnn
 import sys
 sys.path.append("../")
 
-#import meta_config as c
 import model_config as mc
-#from dcgan.model_v2 import Generator3D, Discriminator3D, weight_init
-#from dcgan.model_v6 import Generator3D, Discriminator3D, weight_init
-from dcgan.autoencoder_128_v2 import Encoder, Decoder, Codebook, Discriminator3D, weight_init, VAE, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
-#from dcgan.autoencoder_128_new import Encoder, Decoder, Codebook, Discriminator3D, weight_init, VAE, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
+from model.autoencoder_128_v2 import Encoder, Decoder, Codebook, Discriminator3D, weight_init, VAE, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
 
 from utils import set_seed
 from utils.get_data import *
