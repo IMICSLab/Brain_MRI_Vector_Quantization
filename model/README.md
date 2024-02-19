@@ -1,1 +1,1 @@
-3D VQGAN and masked Transformer model
+3D-VQGAN (cond) and masked Transformer model
