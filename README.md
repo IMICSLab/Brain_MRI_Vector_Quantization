@@ -55,6 +55,6 @@ python3 ./sample_transformer_cond.py
 ```
 You can change the *temperature, topp, topk* parameters in the sampling method in the *sample_cond_configs* in the configs folder, which controls the diversity and quality. The default is topp = None, topk = None, temperature = 1.0
 
-==================================================================================================
+===========================================================================
 
 For MS-SSIM and MMD calculation, please refer to [this repo](https://github.com/cyclomon/3dbraingen), and for the FID score, the implementation is available at [here](https://github.com/mseitzer/pytorch-fid)
