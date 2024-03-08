@@ -165,9 +165,9 @@ class VQGANTransformer(nn.Module):
         for i in range(bs):
             temp = []
             tt = t[i]
-            i = 0
+            j = 0
             while tt:
-                mi = tt[i]
+                mi = tt[j]
                 rand_int = torch.randint(0, 2, size=(1,)).item()
                 #print(rand_int)
                 temp.append(mi)
