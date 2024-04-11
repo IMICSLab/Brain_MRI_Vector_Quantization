@@ -17,7 +17,7 @@ import sys
 sys.path.append("../")
 
 import model_config as mc
-from model.autoencoder_128_v2 import Encoder, Decoder, Codebook, Discriminator3D, weight_init, VAE, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
+from model.autoencoder_128 import Encoder, Decoder, Codebook, weight_init, pre_vq_conv, post_vq_conv, NLayerDiscriminator3D
 
 from utils import set_seed
 from utils.get_data import *
@@ -27,7 +27,6 @@ from utils.find_longest_maskSeq import find_maskSeq
 from utils.lpips import *
 from utils.img_grad_loss import *
 
-# Set random seed for reproducibility
 set_seed.random_seed(0, True)
 
 
@@ -62,16 +61,11 @@ def calculate_adaptive_weight(nll_loss, g_loss, last_layer=None):
 
 data_dir = mc.data_dir
 
-res_dir = c.save_dir
+res_dir = mc.save_dir
 
-#data_dir = "Z:/Datasets/MedicalImages/BrainData/SickKids/LGG/AI_ready"
+
 print("loading data: ")
-# Msks = load_object(os.path.join(data_dir, "Masks.p").replace("\\", "/"))
-# Imgs = load_object(os.path.join(data_dir, "imgs.p").replace("\\", "/"))
-# # labels = load_object("../data/labels.p")
-# pIDs = load_object(os.path.join(data_dir, "pIDs.p").replace("\\", "/"))
-#Rois = torch.load(os.path.join(data_dir, "LGG_ROI_128_train.pt"))
-Rois = torch.load(os.path.join(data_dir, "mutation_ROIs_128_train.pt"))
+Rois = torch.load(os.path.join(data_dir, "data.pt"))
 print("finish loading.")
 print(Rois.shape)
 
@@ -80,50 +74,38 @@ z_dim = mc.z_dim #(8,8,8) # last conv dim, bottleneck dim
 EPOCH = mc.epoch
 codebook_dim = mc.latent_channels
 TRAIL = mc.trail #"1_rerunV2"#3
-#LATENT_DIM = 1000 # Linear latent dim
 lr_decay = mc.lr_decay
+l1_weight = mc.l1_weight
+perp_weight = mc.perp_weight
+vq_weight = mc.vq_weight
+gan_feat_weight = mc.gan_feat_weight
+img_grad_weight = mc.img_grad_weight
 
 if not os.path.exists(res_dir + "/trail{}".format(TRAIL)):
     os.makedirs(res_dir + "/trail{}".format(TRAIL))
 
-config_dict = {}
 
-#print("this version includes the codebook loss")
-config_dict["Description"] = "some description"
-config_dict["Trail"] = TRAIL
-config_dict["Batch Size"] = BATCH_SIZE
-config_dict["z_dim"] = z_dim
-config_dict["Epoch"] = EPOCH
-config_dict["lr decay"] = lr_decay
-config_dict["decay stragegy"] = "cosine annealing"
-
-
-#total = list(range(Rois.shape[0]))
-#val_ind = list(np.random.choice(total, size=3, replace=False))
-target_valid = list(range(Rois.shape[0]))
+total = list(range(Rois.shape[0]))
+val_ind = list(np.random.choice(total, size=BATCH_SIZE, replace=False))
+target_valid = [i for i in total if i not in val_ind] #list(range(Rois.shape[0]))
 # get dataset
 #dataset = get_data_loader(Imgs, Msks, pIDs, target_valid, shuffle = True, norm = False)
 dataset = get_data_loader_128(Rois, target_valid, shuffle = True, norm = False)
-#val_dataset = get_data_loader_128(Rois, val_ind, shuffle = False, norm = False)
+val_dataset = get_data_loader_128(Rois, val_ind, shuffle = False, norm = False)
 
 # get training loader
 train_loader = torch.utils.data.DataLoader(dataset=dataset,
                                             batch_size=BATCH_SIZE, # set to True for VAE
                                             shuffle=True)
 
-# val_loader = torch.utils.data.DataLoader(dataset=val_dataset,
-#                                             batch_size=BATCH_SIZE,
-#                                             shuffle=False)
+val_loader = torch.utils.data.DataLoader(dataset=val_dataset,
+                                            batch_size=BATCH_SIZE,
+                                            shuffle=False)
 
 print("the length of the training loader is {} with batch size {}".format(len(train_loader), BATCH_SIZE))
 # Device selection
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# print('Torch CUDA Current Device: {}'.format(torch.cuda.current_device()))
-# print('Torch CUDA Device: {}'.format(torch.cuda.device(torch.cuda.current_device())))
-# print('Torch CUDA Device Count: {}'.format(torch.cuda.device_count()))
-# print('Torch CUDA Device Name: {}'.format(torch.cuda.get_device_name(torch.cuda.current_device())))
-# print('Torch CUDA Availability: {}'.format(torch.cuda.is_available()))
 
 total_batch_iter = len(train_loader)
 
@@ -178,13 +160,6 @@ if lr_decay:
     stepD = optim.lr_scheduler.CosineAnnealingLR(optimizerDis, T_max=EPOCH)
 
 
-# config_dict["encoder lr"] = enc_lr
-# config_dict["decoder lr"] = dec_lr
-config_dict["discriminator lr"] = dis_lr
-
-config_dict["VAE lr"] = vae_lr
-
-
 # Lists to keep track of progress
 rec_losses = []
 total_losses = []
@@ -213,13 +188,6 @@ scaler = torch.cuda.amp.GradScaler(enabled=use_mixed_precision)
 USE_ACCUMU_BATCH = False
 ACCUMU_BATCH = 2
 
-config_dict["enable accumu grad"] = USE_ACCUMU_BATCH
-config_dict["batch accumulation"] = ACCUMU_BATCH
-
-with open(res_dir + "/trail{}/config.txt".format(TRAIL), 'w') as f: 
-    for key, value in config_dict.items():
-        f.write("{}:{}\n".format(key, value))
-f.close()
 
 whole_process_start = time.time()
 # For each epoch
@@ -293,41 +261,16 @@ for epoch in range(EPOCH):
 
                 loss_perp_batch += lpips_loss(orig_rand_2d, recon_rand_2d).mean()
 
-            if torch.any(torch.isnan(img_grad_batch)) or torch.any(torch.isinf(img_grad_batch)):
-                print(img_grad_batch, "img_grad_batch nan or inf")
-                sys.exit()
-            # adv generator(autoenc)
-            # logits_recon_fake = netDis(im_out)
-            # #logits_real = netDis(data)
-            # loss_adv_g_batch = -torch.mean(logits_recon_fake)
 
-            # # adv discriminator
-            # dis_real = netDis(data.detach())
-            # dis_fake = netDis(im_out.detach())
-            # d_loss_real = torch.mean(F.relu(1. - dis_real))
-            # d_loss_fake = torch.mean(F.relu(1. + dis_fake))
             gan_feat_temp = 0
             logits_data_real, pred_data_real = netNL_Dis(real_cpu)
             for i in range(len(pred_recon_fake)-1):
                 gan_feat_temp += l1_loss(pred_recon_fake[i], pred_data_real[i].detach())
             
             gan_feat_loss = gan_feat_temp
-            if torch.any(torch.isnan(gan_feat_loss)) or torch.any(torch.isinf(gan_feat_loss)):
-                print(gan_feat_loss, "gan_feat_loss nan or inf")
-                sys.exit()
             #disc_factor * self.gan_feat_weight * (image_gan_feat_loss + video_gan_feat_loss)
 
-            #netD(reparametrized_noise)
-            #print("im_out shape: ", im_out.shape)
-            # dis_real = netDis(real_cpu)
-            # dis_fake = netDis(im_out)
-            loss_rec_batch = l1_loss(im_out, real_cpu)
-            if torch.any(torch.isnan(loss_rec_batch)) or torch.any(torch.isinf(loss_rec_batch)):
-                print(loss_rec_batch, "loss_rec_batch nan or inf")
-                sys.exit()
-            if torch.any(torch.isnan(loss_perp_batch)) or torch.any(torch.isinf(loss_perp_batch)):
-                print(loss_perp_batch, "loss_perp_batch nan or inf")
-                sys.exit()            
+            loss_rec_batch = l1_loss(im_out, real_cpu)      
             
             try:
                 d_weight = calculate_adaptive_weight(loss_rec_batch, adv_g_loss_batch, last_layer=netD.final_conv.weight)# final_cov.weight
@@ -338,17 +281,10 @@ for epoch in range(EPOCH):
             
             d_weight = d_weight.clamp_max_(1.0) # clamp to max 1.0
             adv_g_loss_batch = d_weight * adv_g_loss_batch
-            if torch.any(torch.isnan(adv_g_loss_batch)) or torch.any(torch.isinf(adv_g_loss_batch)):
-                print(adv_g_loss_batch, "weighted adv_g_loss_batch nan or inf")
-                sys.exit()
-            # Train with fake batch
-            #loss_KL_batch = kl_loss(mean, logvar)
+
             vq_loss= vq_out["commitment_loss"]
-            if torch.any(torch.isnan(vq_loss)) or torch.any(torch.isinf(vq_loss)):
-                print(vq_loss, "vq_loss nan or inf")
-                sys.exit()
-            # 4 * (1/3) for perp
-            enc_loss = (4.0 * loss_rec_batch + 1.0 * loss_perp_batch + 1.0 * vq_loss + 4.0 * gan_feat_loss + 4.0 * img_grad_batch + adv_d_weights * adv_g_loss_batch)# / ACCUMU_BATCH #+ loss_KL_batch  0.01 * loss_adv_g_batch
+
+            enc_loss = (l1_weight * loss_rec_batch + perp_weight * loss_perp_batch + vq_weight * vq_loss + gan_feat_weight * gan_feat_loss + img_grad_weight * img_grad_batch + adv_d_weights * adv_g_loss_batch)
         
         scaler.scale(enc_loss).backward(retain_graph = True)
         scaler.unscale_(optimizerV)
@@ -369,12 +305,7 @@ for epoch in range(EPOCH):
             loss_adv_d_batch_3d = hinge_d_loss(dis_real, dis_fake) #/ ACCUMU_BATCH
             #loss_adv_d_batch_2d = hinge_d_loss(dis_real_2d, dis_fake_2d) #/ ACCUMU_BATCH
             loss_adv_d_batch = adv_d_weights * (loss_adv_d_batch_3d) #+ loss_adv_d_batch_2d)
-        # d_loss_real = torch.mean(F.relu(1. - dis_real))
-        # d_loss_fake = torch.mean(F.relu(1. + dis_fake))
-        
-        if torch.any(torch.isnan(loss_adv_d_batch)) or torch.any(torch.isinf(loss_adv_d_batch)):
-            print(loss_adv_d_batch, "loss_adv_d_batch nan or inf")
-            sys.exit()        
+         
         
         scaler.scale(loss_adv_d_batch).backward()
         scaler.unscale_(optimizerDis)
@@ -412,13 +343,6 @@ for epoch in range(EPOCH):
     gan_feat_losses.append(gan_feat_loss_iter / len(train_loader))
     img_grad_losses.append(img_grad_iter / len(train_loader))
 
-        #print("gp: ", gradient_penalty)
-        # Calculate gradients for D in backward pass
-        #scaler.update()
-
-        # del eps
-        # del interpolate
-        # del d_interpolate
     del im_out, im_enc, enc_to_vq, vq_out, im_enc_vq, orig_rand_2d, recon_rand_2d, frame_idx, frame_idx_selected, logits_data_real, pred_data_real, logits_recon_fake, pred_recon_fake, dis_fake, dis_real#dis_fake, dis_real, std, mean, logvar dis_real, dis_fake, d_loss_fake, d_loss_real
         
     iters += 1
@@ -432,12 +356,6 @@ for epoch in range(EPOCH):
         print("Training time for", i, "batches: ", batch_duration / 60,
                 " minutes.")
 
-    # update learning rate
-    # if lr_decay:
-    #     stepG.step()
-    #     stepD.step()
-    # print(" End of Epoch %d \n" % epoch)
-    # %.4f\tLoss_adv_d: %.4f\tLoss_adv_g:
     print('[%d/%d]\tLoss_rec: %.4f\tLoss_perp: %.4f\tLoss_vq: %.4f\tLoss_img_grad: %.4f\tLoss_Dis: %.4f'
             % (epoch, EPOCH, rec_losses[-1], perp_losses[-1], vq_losses[-1], img_grad_losses[-1], adv_d_losses[-1]))
 
@@ -455,28 +373,30 @@ for epoch in range(EPOCH):
     if (epoch+1) % 1000 == 0: # save generated image and model weights
         netE.eval(), netD.eval(), codebook.eval(), preV_conv.eval(), postV_conv.eval(), netNL_Dis.eval()
         with torch.no_grad():
-            ind = np.random.randint(0, BATCH_SIZE)
-            rec_data = data[ind].unsqueeze(0)
-            im_enc = netE(rec_data)
-            enc_to_vq = preV_conv(im_enc)
-            vq_out = codebook(enc_to_vq)
-            im_enc_vq = postV_conv(vq_out["embeddings"])
-            im_out = netD(im_enc_vq)
-            im_out = im_out.detach().cpu()
+            for j, data_b in enumerate(val_loader):
+                data = get_data_batch_ROI_128(data_b, device)
+                ind = np.random.randint(0, BATCH_SIZE)
+                rec_data = data[ind].unsqueeze(0)
+                im_enc = netE(rec_data)
+                enc_to_vq = preV_conv(im_enc)
+                vq_out = codebook(enc_to_vq)
+                im_enc_vq = postV_conv(vq_out["embeddings"])
+                im_out = netD(im_enc_vq)
+                im_out = im_out.detach().cpu()
 
-            #print("eval im_out shape: ", im_out.shape)
-            #print("saving some results:")
-            sample = im_out.clone() # select the last batch for visualization
-            sample_img = sample[0][0]
-            # orig img
-            #print("data shape", rec_data.shape)
-            sample_img_orig = rec_data[0,0,:,:,:].detach().cpu()
-            #sample_masks = sample[1]
-            #assert sample_img.shape == sample_masks.shape, "img and mask should have the same shape"
-            rand_ind = list(range(52, 52+16))#np.random.choice(sample_img.shape[0], size=16, replace=False)
-            
-            show(sample_img, rand_ind, res_dir, TRAIL, "rec_img_epoch{}.png".format(epoch), img_save_dir = "rec_img")
-            show(sample_img_orig, rand_ind, res_dir, TRAIL, "orig_img_epoch{}.png".format(epoch), img_save_dir = "rec_img")
+                #print("eval im_out shape: ", im_out.shape)
+                #print("saving some results:")
+                sample = im_out.clone() # select the last batch for visualization
+                sample_img = sample[0][0]
+                # orig img
+                #print("data shape", rec_data.shape)
+                sample_img_orig = rec_data[0,0,:,:,:].detach().cpu()
+                #sample_masks = sample[1]
+                #assert sample_img.shape == sample_masks.shape, "img and mask should have the same shape"
+                rand_ind = list(range(52, 52+16))#np.random.choice(sample_img.shape[0], size=16, replace=False)
+                
+                show(sample_img, rand_ind, res_dir, TRAIL, "rec_img_epoch{}.png".format(epoch), img_save_dir = "rec_img")
+                show(sample_img_orig, rand_ind, res_dir, TRAIL, "orig_img_epoch{}.png".format(epoch), img_save_dir = "rec_img")
         #show(sample_masks, rand_ind, res_dir, TRAIL, "generated_mask_epoch{}.png".format(epoch))
         # torch.save(sample_img, "./3DGAN_res/generated_midimg_epoch{}.pt".format(epoch))
         # torch.save(sample_masks, "./3DGAN_res/generated_midmask_epoch{}.pt".format(epoch))
@@ -492,18 +412,6 @@ for epoch in range(EPOCH):
         #netE.train(), netD.train(), netE.train(), codebook.train(), preV_conv.train(), postV_conv.train()
         del im_out, sample, sample_img, sample_img_orig, rec_data, im_enc, enc_to_vq, vq_out, im_enc_vq#, sample_masks, im_en
 
-    # if (epoch+1) % 800 == 0:
-    #     torch.save({'Encoder': netE.state_dict(),
-    #                 'Decoder': netD.state_dict(),
-    #                 'Codebook': codebook.state_dict(),
-    #                 'preV_conv': preV_conv.state_dict(),
-    #                 'postV_conv': postV_conv.state_dict(),
-    #                 'OptimizerV_state_dict': optimizerV.state_dict()
-    #                 }, res_dir + "/trail{}/pretrained_model/".format(TRAIL) + "epoch_{}.pt".format(epoch))
-        
-    #                     'OptimizerD_state_dict': optimizerD.state_dict(),
-    #               'OptimizerG_state_dict': optimizerG.state_dict(),
-    #                'Scaler_dict': scaler.state_dict()
 
     # plot loss
     # plot_loss(KL_losses, "KL Loss during training",
