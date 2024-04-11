@@ -3,7 +3,7 @@
 [Paper link](https://arxiv.org/abs/2310.01251), under revision at Computers in Biology and Medicine
 
 ## Usage
-### Unconditional
+
 To train the 3D-VQGAN model locally, run:
 ```python
 python3 ./train_ae_128.py
