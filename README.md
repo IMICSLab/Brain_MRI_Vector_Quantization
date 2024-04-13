@@ -1,4 +1,4 @@
-# Code for the paper - Unconditional generation of 3D Brain Tumor Regions in MRI using VQGAN and Transformer
+# Code for the paper - Generating 3D Brain Tumor Regions in MRI using Vector-Quantization Generative Adversarial Networks
 
 [Paper link](https://arxiv.org/abs/2310.01251), under revision at Computers in Biology and Medicine
 
